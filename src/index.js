@@ -35,6 +35,30 @@ function checksExistsUserAccount(request, response, next) {
 
 }
 
+function checkExistsTodo(request, response, next) { 
+
+  // pega os parametros salvos pelos middlewares no request
+  const user = request.user;
+
+  // pega os parametros presentes na rota
+  const { id } = request.params;
+
+  // busca o recurso solicitado na lista
+  const todo = user.todos.find(todo => todo.id === id);
+
+  // valida se o recurso foi encontrado
+  if(!todo) { 
+    return response.status(404).json({error: "Todo not found"});
+  }
+
+  // adiciona o recurso a requisição
+  request.todo = todo;
+
+  // avança para a próxima função do fluxo
+  next();
+
+}
+
 // Users Routes 
 app.post('/users', (request, response) => {
   
@@ -89,7 +113,7 @@ app.post('/todos', checksExistsUserAccount, (request, response) => {
 
   // cria o objeto para a todo
   const todo = { 
-    id: uuidv4, 
+    id: uuidv4(), 
     title, 
     done: false, 
     deadline: new Date(deadline), 
@@ -104,16 +128,53 @@ app.post('/todos', checksExistsUserAccount, (request, response) => {
 
 });
 
-app.put('/todos/:id', checksExistsUserAccount, (request, response) => {
-  // Complete aqui
-});
+app.put('/todos/:id', checksExistsUserAccount, checkExistsTodo, 
+  (request, response) => {
 
-app.patch('/todos/:id/done', checksExistsUserAccount, (request, response) => {
-  // Complete aqui
-});
+    // pega os parametros salvos pelos middlewares no request
+    const { todo } = request;
+    
+    // pega os parametros no corpo da requisição
+    const { title, deadline} = request.body;
 
-app.delete('/todos/:id', checksExistsUserAccount, (request, response) => {
-  // Complete aqui
-});
+    // atualiza os dados
+    todo.title = title; 
+    todo.deadline = new Date(deadline);
+
+    // retorna o recurso já atualizado
+    return response.json(todo);
+
+  }
+);
+
+app.patch('/todos/:id/done', checksExistsUserAccount, checkExistsTodo, 
+  (request, response) => {
+    
+    // pega os parametros salvos pelos middlewares no request
+    const { todo } = request;
+
+    // atualiza os dados
+    todo.done = true;
+
+    // retorna o recurso já atualizado
+    return response.json(todo);
+
+  }
+);
+
+app.delete('/todos/:id', checksExistsUserAccount, checkExistsTodo, 
+  (request, response) => {
+    
+    // pega os parametros salvos pelos middlewares no request
+    const { user, todo } = request;
+
+    // deleta o recurso solicitado
+    user.todos.splice(todo, 1);
+
+    // retorna uma confirmação de que a deleção foi efetuada
+    return response.status(204).send();
+
+  }
+);
 
 module.exports = app;
